@@ -3,14 +3,12 @@ use std::sync::{Arc, Mutex};
 use ordered_float::OrderedFloat;
 use rand::Rng;
 
-// Assuming a simple vector-based item for demonstration
 #[derive(Clone, Debug)]
 struct VectorItem {
     id: usize,
     vector: Vec<f64>,
 }
 
-// Define a trait for distance calculation
 trait DistanceCalculator {
     fn calculate(&self, item1: &VectorItem, item2: &VectorItem) -> f64;
 }
@@ -27,7 +25,6 @@ impl DistanceCalculator for EuclideanDistance {
     }
 }
 
-// Node structure
 struct Node {
     id: usize,
     connections: Vec<Vec<usize>>,
@@ -35,10 +32,7 @@ struct Node {
     layer: usize,
 }
 
-// HNSW index structure
 struct HnswIndex {
-    nodes: Arc<Mutex<HashMap<usize, Node>>>,
-    max_elements: usize,
     level_lambda: f64,
     max_level: usize,
     distance_calculator: Box<dyn DistanceCalculator>,
@@ -116,6 +110,48 @@ impl HnswIndex {
 
 }
 
+pub fn searchGreedy(&self, query: &VectorItem, k: usize) -> Result<Vec<VectorItem>, String> {
+    let nodes = self.nodes.lock().unwrap();
+    let entry_point = ...; // Get the entry point of the graph
+    let mut candidates = ...; // Data structure to store candidates
+    let mut visited = ...; // Set to keep track of visited nodes
+
+    for layer in (0..=self.max_level).rev() {
+        let mut current_node = entry_point;
+        loop {
+            let mut closest_node = None;
+            let mut closest_distance = f64::MAX;
+
+            // Perform greedy search in the current layer
+            for &neighbor_id in &nodes[&current_node].connections[layer] {
+                if visited.insert(neighbor_id) {
+                    let neighbor = &nodes[&neighbor_id].item;
+                    let distance = self.distance_calculator.calculate(query, neighbor);
+                    if distance < closest_distance {
+                        closest_node = Some(neighbor_id);
+                        closest_distance = distance;
+                    }
+                }
+            }
+
+            if let Some(closest) = closest_node {
+                current_node = closest;
+            } else {
+                break; // No closer node found, move to the lower layer
+            }
+        }
+
+        // Add current node to candidates
+        candidates.insert(current_node, closest_distance);
+    }
+
+    // Refine candidates on the bottom layer to find top k
+    let mut top_k_items = ...; // Logic to select top k items from candidates
+
+    Ok(top_k_items)
+}
+
+
 // fn main() {
 //     let hnsw = HnswIndex::new(10000, 1.0 / 3.0, 16, Box::new(EuclideanDistance));
 
@@ -164,5 +200,4 @@ fn main() {
         }
     }
 
-    // Optionally, include performance metrics
 }
