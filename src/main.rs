@@ -1,4 +1,4 @@
-use std::collections::{HashMap};
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use ordered_float::OrderedFloat;
 use rand::Rng;
@@ -33,6 +33,8 @@ struct Node {
 }
 
 struct HnswIndex {
+    nodes: Arc<Mutex<HashMap<usize, Node>>>,
+    max_elements: usize,
     level_lambda: f64,
     max_level: usize,
     distance_calculator: Box<dyn DistanceCalculator>,
@@ -108,48 +110,60 @@ impl HnswIndex {
         Ok(result)
     }
 
-}
+    pub fn search_greedy(&self, query: &VectorItem, k: usize) -> Result<Vec<VectorItem>, String> {
 
-pub fn searchGreedy(&self, query: &VectorItem, k: usize) -> Result<Vec<VectorItem>, String> {
-    let nodes = self.nodes.lock().unwrap();
-    let entry_point = ...; // Get the entry point of the graph
-    let mut candidates = ...; // Data structure to store candidates
-    let mut visited = ...; // Set to keep track of visited nodes
+        let nodes = self.nodes.lock().unwrap();
+        // Dummy entry point: for example, we can just pick the first node's ID if it exists
+        let entry_point = nodes.keys().cloned().next().ok_or("No nodes in the graph")?;
+        // Candidates: Using a HashMap to store node IDs and their distance from the query
+        let mut candidates: HashMap<usize, f64> = HashMap::new();
+        // Visited: Using a HashSet to keep track of visited node IDs
+        let mut visited: HashSet<usize> = HashSet::new();
+        let mut closest_distance: f64;
 
-    for layer in (0..=self.max_level).rev() {
-        let mut current_node = entry_point;
-        loop {
-            let mut closest_node = None;
-            let mut closest_distance = f64::MAX;
 
-            // Perform greedy search in the current layer
-            for &neighbor_id in &nodes[&current_node].connections[layer] {
-                if visited.insert(neighbor_id) {
-                    let neighbor = &nodes[&neighbor_id].item;
-                    let distance = self.distance_calculator.calculate(query, neighbor);
-                    if distance < closest_distance {
-                        closest_node = Some(neighbor_id);
-                        closest_distance = distance;
+        for layer in (0..=self.max_level).rev() {
+            let mut current_node = entry_point;
+            loop {
+                let mut closest_node = None;
+                closest_distance = f64::MAX;
+                // Perform greedy search in the current layer
+                for &neighbor_id in &nodes[&current_node].connections[layer] {
+                    if visited.insert(neighbor_id) {
+                        let neighbor = &nodes[&neighbor_id].item;
+                        let distance = self.distance_calculator.calculate(query, neighbor);
+                        if distance < closest_distance {
+                            closest_node = Some(neighbor_id);
+                            closest_distance = distance;
+                        }
                     }
                 }
+    
+                if let Some(closest) = closest_node {
+                    current_node = closest;
+                } else {
+                    break; // No closer node found, move to the lower layer
+                }
             }
-
-            if let Some(closest) = closest_node {
-                current_node = closest;
-            } else {
-                break; // No closer node found, move to the lower layer
-            }
+    
+            // Add current node to candidates
+            candidates.insert(current_node, closest_distance);
         }
-
-        // Add current node to candidates
-        candidates.insert(current_node, closest_distance);
-    }
-
-    // Refine candidates on the bottom layer to find top k
-    let mut top_k_items = ...; // Logic to select top k items from candidates
-
-    Ok(top_k_items)
+    
+        // Refine candidates on the bottom layer to find top k
+        let mut top_k_items = candidates
+            .iter()
+            .take(k)
+            .map(|(&id, &dist)| VectorItem {
+                id,
+                vector: nodes.get(&id).unwrap().item.vector.clone(),
+            })
+            .collect::<Vec<VectorItem>>();
+    
+        Ok(top_k_items)
+    }    
 }
+
 
 
 // fn main() {
