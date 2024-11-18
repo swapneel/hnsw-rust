@@ -81,8 +81,5 @@ fn main() -> std::io::Result<()> {
     create_test_vectors(output_dir, n_files, vectors_per_file, dimensions)?;
 
     println!("\nTest vectors have been generated!");
-    println!("To cluster these vectors, run:");
-    println!("cargo run --bin cluster-processor -- --input test_vectors --output clustered_vectors --clusters 10");
-
     Ok(())
 }

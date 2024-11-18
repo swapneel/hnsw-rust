@@ -3,14 +3,22 @@ name = "hnsw-rust"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "index-test"  # This will be the name you use with cargo run
+path = "benchmarks/index_test.rs"  # Path to your file
+
+[[bin]]
+name = "cluster-processor"
+path = "src/bin/cluster_processor.rs"
+
+[[bin]]
+name = "vector-generator"
+path = "src/bin/vector_generator.rs"
+
 [dependencies]
 ordered-float = "4.2.0"
-rand = "0.8.5"
-rayon = "1.8"
+rand = { version = "0.8", features = ["std"] }
+indicatif = "0.17"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-indicatif = "0.17"  # For progress bars
-
-[[benchmark]]
-name = "index_test"
-path = "benchmark/index_test.rs"
+rayon = "1.8"
